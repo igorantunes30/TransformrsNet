@@ -1,0 +1,18 @@
+================= Confusão x similaridade =================
+Critério de similaridade: classes que compartilham o último token do
+nome (ex.: Albatross, Sparrow, Warbler, Wren) — proxy de gênero/família.
+
+Total grupos                    : 70
+Grupos com ≥2 espécies          : 37
+Erros totais                    : 530 / 5794  (9.15%)
+Erros intra-grupo               : 372  (70.19% dos erros)
+Erros inter-grupo               : 158  (29.81% dos erros)
+Esperado por chance (aleatório) : 3.55%
+Lift (observado / aleatório)    : 19.8×
+
+Interpretação:
+  Se os erros fossem aleatórios entre as 199 classes restantes,
+  apenas ~3.5% deles cairiam em uma espécie do mesmo grupo.
+  Na prática 70.2% caem ali — confirma que o modelo confunde
+  ESPÉCIES PARECIDAS muito mais do que classes não relacionadas.
+============================================================

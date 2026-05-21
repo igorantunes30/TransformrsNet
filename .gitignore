@@ -1,0 +1,72 @@
+# ----- Credenciais (NUNCA commitar) -----
+kaggle.json
+*.key
+*.pem
+.env
+.env.*
+
+# ----- Modelos / checkpoints pesados (>100 MB do limite do GitHub) -----
+*.pth
+*.ckpt
+*.tar
+*.gz
+*.bin
+*.safetensors
+**/ckpts/
+
+# ----- Datasets brutos / arquivos compactados -----
+testes/todas_imagens/
+testes/especie_passaros/
+*.zip
+
+# ----- Saídas pesadas de treino -----
+**/wandb/
+**/tensorboard/
+**/runs/
+results_train/*/tensorboard/
+results_inference/
+
+# ----- LaTeX intermediários (manter apenas .tex e .pdf finais) -----
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+relatorio.log
+relatorio.out
+relatorio.toc
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+.eggs/
+.installed.cfg
+MANIFEST
+
+# ----- Ambientes virtuais -----
+.venv/
+venv/
+env/
+ENV/
+
+# ----- Notebooks -----
+.ipynb_checkpoints/
+
+# ----- IDE / SO -----
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Cache de testes -----
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/

@@ -1,0 +1,656 @@
+\documentclass[a4paper,12pt]{scrartcl}
+
+% ── Encoding & Language ─────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+% ── Fonts ───────────────────────────────────────────────────────────────────
+\usepackage{lmodern}
+
+% ── Graphics & Colors ───────────────────────────────────────────────────────
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+% ── Tables ──────────────────────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
+
+% ── Code Listings ───────────────────────────────────────────────────────────
+\usepackage{listings}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{kwcolor}{RGB}{0,0,180}
+\definecolor{strcolor}{RGB}{163,21,21}
+\definecolor{cmtcolor}{RGB}{0,128,0}
+\definecolor{idcolor}{RGB}{30,80,120}
+
+\lstdefinestyle{pythonstyle}{
+  language=Python,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  identifierstyle=\color{idcolor},
+  showstringspaces=false,
+  breaklines=true,
+  tabsize=4,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=6pt,
+  xleftmargin=18pt,
+}
+
+\lstdefinestyle{bashstyle}{
+  language=bash,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  showstringspaces=false,
+  breaklines=true,
+  xleftmargin=10pt,
+}
+
+\lstdefinestyle{yamlstyle}{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  showstringspaces=false,
+  breaklines=true,
+  xleftmargin=10pt,
+  morecomment=[l]{\#},
+  commentstyle=\color{cmtcolor}\itshape,
+}
+
+\lstdefinestyle{treestyle}{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\footnotesize,
+  showstringspaces=false,
+  breaklines=false,
+  xleftmargin=10pt,
+}
+
+% ── Links ────────────────────────────────────────────────────────────────────
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!70!black,
+  citecolor=blue!70!black,
+  pdftitle={Relatorio GLSim},
+  pdfauthor={},
+}
+
+% ── Portuguese captions (manual) ─────────────────────────────────────────────
+\renewcommand{\contentsname}{Sum\'ario}
+\renewcommand{\tablename}{Tabela}
+\renewcommand{\figurename}{Figura}
+\renewcommand{\lstlistingname}{C\'odigo}
+
+% ── Spacing ──────────────────────────────────────────────────────────────────
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+
+% ── Compact lists ────────────────────────────────────────────────────────────
+\newenvironment{compactitem}%
+  {\begin{itemize}\setlength{\itemsep}{1pt}\setlength{\parsep}{0pt}}%
+  {\end{itemize}}
+
+\newenvironment{compactenum}%
+  {\begin{enumerate}\setlength{\itemsep}{2pt}\setlength{\parsep}{0pt}}%
+  {\end{enumerate}}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ─── Capa ─────────────────────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Huge\bfseries Relat\'orio de An\'alise\par}
+  \vspace{0.5cm}
+  {\rule{\linewidth}{1.5pt}\par}
+  \vspace{0.8cm}
+  {\LARGE\bfseries GLSim\,---\,Global-Local Similarity\\[0.4em]
+   para Reconhecimento Fino de Imagens\\[0.4em]
+   com Vision Transformers\par}
+  \vspace{0.8cm}
+  {\rule{\linewidth}{1.5pt}\par}
+  \vspace{1.5cm}
+
+  \begin{tabular}{@{}rl@{}}
+    \textbf{Artigo:}     & \href{https://arxiv.org/abs/2407.12891}{Global-Local Similarity for Efficient} \\
+                         & \href{https://arxiv.org/abs/2407.12891}{Fine-Grained Image Recognition with ViT} \\[6pt]
+    \textbf{Publicado:}  & ISCAS 2025 \\[6pt]
+    \textbf{Autores:}    & Edwin Arkel Rios, Min-Chun Hu, Bo-Cheng Lai \\
+                         & (NYCU\,/\,NTHU, Taiwan) \\[6pt]
+    \textbf{Data:}       & 06/05/2026 \\
+  \end{tabular}
+
+  \vfill
+  {\small Relat\'orio gerado a partir de an\'alise est\'atica do c\'odigo-fonte.}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+% ─── Seção 1 ──────────────────────────────────────────────────────────────────
+\section{Vis\~ao Geral}
+
+O GLSim \'e um framework de reconhecimento fino de imagens
+(\textit{Fine-Grained Visual Recognition}\,---\,FGVR) baseado em Vision
+Transformers (ViT). O problema central do FGVR \'e distinguir subclasses
+visualmente muito parecidas (ex.: esp\'ecies de p\'assaros, modelos de carros,
+cultivares de plantas), o que exige que o modelo foque em regi\~oes locais
+discriminativas da imagem.
+
+A contribui\c{c}\~ao principal \'e uma m\'etrica chamada \textbf{GLS
+(Global-Local Similarity)}, computacionalmente barata, que identifica regi\~oes
+discriminativas comparando a similaridade entre a representa\c{c}\~ao global da
+imagem (token CLS) e as representa\c{c}\~oes locais (patches). Com base nisso,
+a imagem \'e recortada, re-encodada e as \textit{features} s\~ao fundidas por
+um m\'odulo agregador.
+
+% ─── Seção 2 ──────────────────────────────────────────────────────────────────
+\section{Estrutura de Diret\'orios}
+
+\begin{lstlisting}[style=treestyle,
+  caption={Estrutura de diret\'orios do reposit\'orio GLSim}]
+GLSim-main/
+|-- glsim/                     # Pacote principal
+|   |-- model_utils/           # Arquiteturas de modelos
+|   |   |-- glsim.py           # Modelo principal ViTGLSim
+|   |   |-- configs.py         # Configuracoes de todas as variantes de ViT
+|   |   |-- build_model.py     # Factory de modelos
+|   |   |-- transformer.py     # Blocos Transformer customizados
+|   |   |-- timm_glsim.py      # Integracao com timm (DINOv2, etc.)
+|   |   |-- transfg.py         # Baseline: TransFG
+|   |   |-- ffvt.py            # Baseline: FFVT
+|   |   |-- cal.py             # Baseline: CAL
+|   |   `-- resnet.py          # Baseline: ResNet
+|   |-- data_utils/            # Pipeline de dados
+|   |   |-- build_dataloaders.py
+|   |   |-- build_transform.py
+|   |   |-- datasets.py
+|   |   `-- augmentations.py
+|   |-- train_utils/           # Loop de treinamento
+|   |   |-- trainer.py         # Classe Trainer principal
+|   |   |-- scheduler.py       # Schedulers de learning rate
+|   |   |-- focal_loss.py
+|   |   |-- contrastive_loss.py
+|   |   |-- mix.py             # CutMix / MixUp
+|   |   `-- scaler.py          # AMP (mixed precision)
+|   `-- other_utils/
+|       |-- build_args.py      # Parsing de argumentos CLI
+|       `-- yaml_config_hook.py
+|-- tools/                     # Scripts executaveis
+|   |-- train.py               # Treinamento e avaliacao
+|   |-- inference.py           # Inferencia em imagens individuais
+|   |-- vis_dfsm.py            # Visualizacao do mecanismo discriminativo
+|   |-- heatmap.py
+|   |-- calc_flops.py
+|   |-- compute_feature_metrics.py
+|   |-- demo.py                # Demo Gradio
+|   `-- preprocess/            # Scripts de preparacao de datasets
+|-- configs/                   # Arquivos YAML de configuracao
+|   |-- methods/glsim.yaml     # Config do metodo GLSim
+|   |-- datasets/*.yaml        # Config de cada dataset
+|   |-- augs/*.yaml            # Config de augmentacoes
+|   `-- settings/ft_is224.yaml # Config base de fine-tuning
+|-- data/                      # CSVs de splits (train/val/test)
+|-- samples/                   # Imagens de exemplo
+|-- assets/                    # Figuras do paper
+|-- requirements.txt
+`-- setup.py
+\end{lstlisting}
+
+% ─── Seção 3 ──────────────────────────────────────────────────────────────────
+\section{Arquitetura do Modelo}
+
+\subsection{Componentes Principais
+  (\texttt{glsim/model\_utils/glsim.py})}
+
+A classe central \'e \texttt{ViTGLSim(nn.Module)}, composta por quatro
+m\'odulos em sequ\^encia:
+
+\subsubsection{(a) Patch Embedding + Tokeniza\c{c}\~ao}
+
+\begin{lstlisting}[style=pythonstyle,
+  caption={Defini\c{c}\~ao do patch embedding}]
+self.patch_embedding = nn.Conv2d(in_channels=3, out_channels=768,
+                                  kernel_size=(16, 16), stride=(16, 16))
+\end{lstlisting}
+
+\begin{compactitem}
+  \item Imagem \texttt{(B, 3, 224, 224)} $\rightarrow$ patches
+        \texttt{(B, 196, 768)} (para ViT-B/16)
+  \item Token CLS aprendiv\'el concatenado: sequ\^encia fica
+        \texttt{(B, 197, 768)}
+  \item \textit{Positional embedding} somado
+\end{compactitem}
+
+\subsubsection{(b) Encoder Transformer}
+
+Implementado em \texttt{glsim/model\_utils/transformer.py}:
+
+\begin{compactitem}
+  \item \texttt{num\_layers=12}, \texttt{hidden\_size=768},
+        \texttt{num\_heads=12}, \texttt{ff\_dim=3072} (ViT-B/16)
+  \item Cada bloco: LayerNorm $\to$ Multi-head Self-Attention
+        $\to$ Residual $\to$ LayerNorm $\to$ FFN $\to$ Residual
+  \item Suporte a \textbf{Stochastic Depth (DropPath)}
+        para regulariza\c{c}\~ao
+  \item Retorna \textit{features} intermedi\'arias e mapas de aten\c{c}\~ao
+        para visualiza\c{c}\~ao
+\end{compactitem}
+
+\subsubsection{(c) M\'odulo GLSCM --- Global-Local Similarity Crop Module}
+
+\begin{lstlisting}[style=pythonstyle,
+  caption={L\'ogica do GLSCM (pseudoc\'odigo)}]
+get_crops(x, images):
+    g = x[:, 0, :]      # token CLS (rep. global), shape: (B, 1, 768)
+    l = x[:, 1:, :]     # patches restantes (rep. locais), shape: (B, 196, 768)
+    sim = cosine_similarity(g, l)   # similaridade por patch: (B, 196)
+    # top-k patches mais similares -> bounding box 2D -> recorte + upsample
+\end{lstlisting}
+
+\textbf{Intui\c{c}\~ao:} Os patches mais similares ao CLS s\~ao os mais
+representativos do conte\'udo global\,---\,logo, as regi\~oes discriminativas
+da subclasse. O recorte dessas regi\~oes \'e redimensionado para o tamanho
+original e re-encodado.
+
+\textbf{Alternativas de m\'etrica de similaridade} (configur\'avel via
+\texttt{sim\_metric}):
+\begin{compactitem}
+  \item \texttt{cos} (padr\~ao): similaridade de cosseno, m\'aximos
+        selecionados
+  \item \texttt{l1} / \texttt{l2}: dist\^ancia, m\'inimos selecionados
+\end{compactitem}
+
+\subsubsection{(d) Aggregator}
+
+\begin{compactitem}
+  \item Transformer leve com
+        \texttt{aggregator\_num\_hidden\_layers=1} (padr\~ao)
+  \item Entrada: \texttt{[CLS\_original, CLS\_crop]}
+        $\to$ shape \texttt{(B, 2, 768)}
+  \item Combina as duas representa\c{c}\~oes para a predi\c{c}\~ao final
+  \item Seguido de LayerNorm
+\end{compactitem}
+
+\subsubsection{(e) Cabe\c{c}a de Classifica\c{c}\~ao}
+
+\texttt{nn.Linear(768, num\_classes)} aplicado no token CLS do aggregator.
+
+% ── Fluxo de dados ───────────────────────────────────────────────────────────
+\subsection{Fluxo de Dados Completo}
+
+\begin{lstlisting}[style=treestyle,
+  caption={Pipeline completo de dados do GLSim}]
+Imagem (B, 3, 224, 224)
+        |
+        v  patchify_tokenize
+  Tokens (B, 197, 768)
+        |
+        v  forward_encoder (ViT)
+  Features (B, 197, 768)
+        |
+   +---------+
+   |         |  get_crops -> recorte (B, 3, 224, 224)
+   |         v  patchify_tokenize + forward_encoder
+   |   Features Crop (B, 197, 768)
+   |         |
+   +---->cat (B, 394, 768)
+        |
+        v  forward_reducer (extrai CLS de cada metade)
+  [CLS_orig, CLS_crop] (B, 2, 768)
+        |
+        v  aggregator (Transformer 1 camada)
+  Features agregadas (B, 2, 768)
+        |
+        v  head (Linear)
+  Logits (B, num_classes)
+\end{lstlisting}
+
+\subsection{Variantes de Backbone Suportadas}
+
+\begin{table}[h!]
+  \centering
+  \caption{Variantes de backbone ViT dispon\'iveis no GLSim}
+  \begin{tabular}{lcccc}
+    \toprule
+    \textbf{Variante} & \textbf{hidden\_size} & \textbf{heads} &
+    \textbf{layers} & \textbf{patch} \\
+    \midrule
+    ViT-T/16             & 192  & 3  & 12 & $16{\times}16$ \\
+    ViT-S/16             & 384  & 6  & 12 & $16{\times}16$ \\
+    ViT-B/16             & 768  & 12 & 12 & $16{\times}16$ \\
+    ViT-L/16             & 1024 & 16 & 24 & $16{\times}16$ \\
+    ViT-H/14             & 1280 & 16 & 32 & $14{\times}14$ \\
+    DINOv2 (via timm)    & 768  & 12 & 12 & $14{\times}14$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:backbones}
+\end{table}
+
+% ─── Seção 4 ──────────────────────────────────────────────────────────────────
+\section{Configura\c{c}\~ao do M\'etodo GLSim}
+
+Arquivo: \texttt{configs/methods/glsim.yaml}
+
+\begin{lstlisting}[style=yamlstyle,
+  caption={Configura\c{c}\~ao principal do m\'etodo GLSim}]
+classifier: 'cls'         # usa token CLS como representacao
+dynamic_anchor: True      # tamanho do recorte = tamanho de um patch
+anchor_class_token: True  # token CLS separado para o recorte
+reducer: 'cls'            # extrai apenas o token CLS de cada stream
+aggregator: True          # habilita o modulo aggregator
+aggregator_norm: True     # LayerNorm apos aggregator
+\end{lstlisting}
+
+O modo \texttt{dynamic\_anchor=True} \'e a configura\c{c}\~ao principal: o
+\textit{bounding box} do recorte \'e determinado automaticamente pelo GLSCM a
+cada \textit{forward pass}, adaptando-se ao conte\'udo da imagem.
+
+% ─── Seção 5 ──────────────────────────────────────────────────────────────────
+\section{Datasets Suportados}
+
+\begin{table}[h!]
+  \centering
+  \caption{Datasets suportados pelo GLSim}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Dataset}   & \textbf{Dom\'inio}            & \textbf{Classes} \\
+    \midrule
+    CUB-200-2011       & Aves                          & 200        \\
+    Stanford Cars      & Ve\'iculos                    & 196        \\
+    FGVC Aircraft      & Aeronaves                     & 100        \\
+    NABirds            & Aves (Am\'erica do Norte)     & 555        \\
+    iNat17             & Natureza geral                & 5.089      \\
+    DAFB               & Personagens anime             & $\sim$2.000 \\
+    Oxford Pets        & Animais dom\'esticos          & 37         \\
+    Oxford Flowers     & Flores                        & 102        \\
+    Stanford Dogs      & C\~aes                        & 120        \\
+    Food-101           & Alimentos                     & 101        \\
+    Cotton / Soy       & Plantas agr\'icolas           & varia      \\
+    VegFru             & Vegetais/frutas               & varia      \\
+    ImageNet           & Geral                         & 1.000      \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:datasets}
+\end{table}
+
+% ─── Seção 6 ──────────────────────────────────────────────────────────────────
+\section{Pipeline de Treinamento}
+
+\subsection{Augmenta\c{c}\~oes (\texttt{configs/augs/})}
+
+\begin{compactitem}
+  \item \textbf{weakaugs}: flip horizontal, normaliza\c{c}\~ao padr\~ao
+  \item \textbf{medaugs}: flip + RandAugment leve
+  \item \textbf{strongaugs}: TrivialAugmentWide, Random Erasing
+\end{compactitem}
+
+\subsection{Otimizador e Scheduler}
+
+\begin{compactitem}
+  \item Otimizador: SGD (via \texttt{timm.optim.create\_optimizer})
+  \item Scheduler: cosine decay com warmup
+        (\texttt{glsim/train\_utils/scheduler.py})
+  \item Learning rate padr\~ao: \texttt{0.01}
+  \item Suporte a AMP (\texttt{fp16}) via \texttt{torch.cuda.amp.autocast}
+        + \texttt{NativeScaler}
+\end{compactitem}
+
+\subsection{Fun\c{c}\~oes de Perda Dispon\'iveis}
+
+\begin{compactitem}
+  \item \texttt{CrossEntropyLoss} (padr\~ao)
+  \item \texttt{LabelSmoothingCrossEntropy} (\texttt{-{}-ls})
+  \item \texttt{FocalLoss} (\texttt{-{}-focal\_gamma})
+  \item Contrastive Loss (\texttt{contrastive\_loss.py}) para TransFG
+\end{compactitem}
+
+\subsection{T\'ecnicas de Regulariza\c{c}\~ao}
+
+\begin{compactitem}
+  \item Label Smoothing
+  \item CutMix\,/\,MixUp (\texttt{-{}-cm}, \texttt{-{}-mu})
+  \item Stochastic Depth (\texttt{-{}-sd})
+  \item Gradient Accumulation
+        (\texttt{-{}-gradient\_accumulation\_steps})
+  \item Gradient Clipping (\texttt{-{}-clip\_grad})
+\end{compactitem}
+
+\subsection{Treinamento Distribu\'ido}
+
+\begin{compactitem}
+  \item Suporte a \texttt{DistributedDataParallel} (DDP)
+  \item \texttt{RASampler} para Repeated Augmentation em treino
+        distribu\'ido
+\end{compactitem}
+
+\subsection{Experimentos e Monitoramento}
+
+\begin{compactitem}
+  \item Integra\c{c}\~ao nativa com \textbf{Weights \& Biases (WandB)}
+  \item Salva modelo \textit{best}, \textit{last} e por \'epoca
+        configur\'avel
+  \item Log de acur\'acia top-1 e top-5, loss, LR a cada
+        \texttt{log\_freq} itera\c{c}\~oes
+\end{compactitem}
+
+% ─── Seção 7 ──────────────────────────────────────────────────────────────────
+\section{Baselines Inclu\'idos para Compara\c{c}\~ao}
+
+\begin{table}[h!]
+  \centering
+  \caption{Modelos baseline dispon\'iveis no reposit\'orio}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Modelo}         & \textbf{Arquivo}            & \textbf{Refer\^encia} \\
+    \midrule
+    TransFG                 & \texttt{transfg.py}         & Trans Fine-Grained \\
+    FFVT                    & \texttt{ffvt.py}            & Feature Fusion ViT \\
+    CAL                     & \texttt{cal.py}             & Counterfactual Attention Learning \\
+    ResNet                  & \texttt{resnet.py}          & ResNet-50/101 \\
+    ViT puro (sem GLSim)    & \texttt{build\_model.py}    & --- \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:baselines}
+\end{table}
+
+% ─── Seção 8 ──────────────────────────────────────────────────────────────────
+\section{Ferramentas Utilit\'arias (\texttt{tools/})}
+
+\begin{table}[h!]
+  \centering
+  \caption{Scripts utilit\'arios em \texttt{tools/}}
+  \begin{tabular}{>{\ttfamily}lp{9cm}}
+    \toprule
+    \normalfont\textbf{Script} & \textbf{Fun\c{c}\~ao} \\
+    \midrule
+    train.py                      & Treinamento completo e avalia\c{c}\~ao no test set \\[2pt]
+    inference.py                  & Infer\^encia em imagem(ns) \'unica(s); salva original + recorte lado a lado \\[2pt]
+    vis\_dfsm.py                  & Visualiza o mecanismo discriminativo (GLS vs.\ attention rollout) em lote \\[2pt]
+    heatmap.py                    & Gera heatmaps de aten\c{c}\~ao \\[2pt]
+    calc\_flops.py                & Calcula FLOPs e par\^ametros do modelo \\[2pt]
+    compute\_feature\_metrics.py  & M\'etricas de features (separabilidade, etc.) \\[2pt]
+    demo.py                       & Interface Gradio interativa \\[2pt]
+    preprocess/                   & Scripts para preparar splits CSV de cada dataset \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:tools}
+\end{table}
+
+% ─── Seção 9 ──────────────────────────────────────────────────────────────────
+\section{Depend\^encias Principais}
+
+\begin{table}[h!]
+  \centering
+  \caption{Principais bibliotecas utilizadas pelo GLSim}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Biblioteca} & \textbf{Vers\~ao} & \textbf{Uso} \\
+    \midrule
+    PyTorch  & ---    & framework base \\
+    timm     & 0.9.12 & modelos pr\'e-treinados, otimizadores, losses \\
+    einops   & ---    & opera\c{c}\~oes tensoriais leg\'iveis \\
+    wandb    & ---    & rastreamento de experimentos \\
+    gradio   & ---    & demo interativa \\
+    scipy    & 1.8.0  & utilit\'arios cient\'ificos \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:deps}
+\end{table}
+
+% ─── Seção 10 ─────────────────────────────────────────────────────────────────
+\section{Uso como M\'odulo Python}
+
+\begin{lstlisting}[style=pythonstyle,
+  caption={Exemplo de uso do \texttt{ViTGLSim} como m\'odulo Python}]
+import torch
+from glsim.model_utils import ViTGLSim, ViTConfig
+
+cfg = ViTConfig(
+    model_name='vit_b16',
+    debugging=True,
+    classifier='cls',
+    dynamic_anchor=True,
+    reducer='cls',
+    aggregator=True,
+    aggregator_norm=True
+)
+model = ViTGLSim(cfg)
+
+x = torch.rand(2, 3, 224, 224)   # batch de 2 imagens RGB 224x224
+out = model(x)  # retorna (logits, crops) quando anchor_size ativo
+\end{lstlisting}
+
+% ─── Seção 11 ─────────────────────────────────────────────────────────────────
+\section{Comandos Principais}
+
+\subsection{Instala\c{c}\~ao}
+
+\begin{lstlisting}[style=bashstyle, caption={Instala\c{c}\~ao do pacote}]
+pip install -e .
+\end{lstlisting}
+
+\subsection{Treinamento (CUB, ViT-B/16, 224px)}
+
+\begin{lstlisting}[style=bashstyle,
+  caption={Treinamento no dataset CUB-200-2011 com ViT-B/16}]
+python tools/train.py \
+  --cfg configs/cub_ft_is224_medaugs.yaml \
+  --lr 0.01 \
+  --model_name vit_b16 \
+  --cfg_method configs/methods/glsim.yaml
+\end{lstlisting}
+
+\subsection{Avalia\c{c}\~ao de Checkpoint}
+
+\begin{lstlisting}[style=bashstyle,
+  caption={Avalia\c{c}\~ao de um checkpoint salvo}]
+python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --test_only
+\end{lstlisting}
+
+\subsection{Infer\^encia em Imagem \'Unica}
+
+\begin{lstlisting}[style=bashstyle,
+  caption={Infer\^encia com visualiza\c{c}\~ao do recorte discriminativo}]
+python tools/inference.py \
+  --ckpt_path ckpts/dafb_glsim.pth \
+  --images_path samples/others/dafb_rena_170785.jpg \
+  --vis_mask glsim_norm
+\end{lstlisting}
+
+\subsection{Visualiza\c{c}\~ao do Mecanismo Discriminativo}
+
+\begin{lstlisting}[style=bashstyle,
+  caption={Visualiza\c{c}\~ao do GLSCM em lote (NABirds + DINOv2)}]
+python tools/vis_dfsm.py \
+  --serial 52 --batch_size 4 --vis_cols 4 \
+  --cfg configs/nabirds_ft_is224_weakaugs.yaml \
+  --model_name glsvit_base_patch14_dinov2.lvd142m \
+  --vis_mask gls --vis_mask_pow
+\end{lstlisting}
+
+% ─── Seção 12 ─────────────────────────────────────────────────────────────────
+\section{Resultados Reportados no Paper}
+
+O m\'etodo obt\'em resultados competitivos em m\'ultiplos benchmarks de FGVR.
+Os destaques s\~ao:
+
+\begin{compactitem}
+  \item \textbf{CUB-200-2011:} Acur\'acia top-1 compar\'avel ao estado da
+        arte em 224px e 448px.
+  \item \textbf{NABirds\,/\,iNat17:} Vantagem em datasets de grande escala.
+  \item \textbf{Efici\^encia:} O GLSCM tem custo computacional ordens de
+        magnitude menor que \textit{attention rollout}, com FLOPs totais
+        similares ao ViT base.
+  \item Checkpoints pr\'e-treinados dispon\'iveis no HuggingFace:
+        \href{https://huggingface.co/NYCU-PCSxNTHU-MIS/GLSim}%
+             {\texttt{NYCU-PCSxNTHU-MIS/GLSim}}.
+\end{compactitem}
+
+% ─── Seção 13 ─────────────────────────────────────────────────────────────────
+\section{Pontos T\'ecnicos de Destaque}
+
+\begin{compactenum}
+  \item \textbf{Sem necessidade de anota\c{c}\~oes de localiza\c{c}\~ao:}
+        O GLSCM detecta regi\~oes discriminativas automaticamente, sem
+        \textit{bounding boxes} supervisionados.
+
+  \item \textbf{Custo baixo do GLSCM:} A similaridade cosseno entre o CLS
+        e os patches \'e uma opera\c{c}\~ao $\mathcal{O}(N)$ sobre a
+        sequ\^encia de patches\,---\,muito mais barata que
+        \textit{attention rollout} ($\mathcal{O}(N^2)$ por camada).
+
+  \item \textbf{Dynamic anchor:} O tamanho do recorte \'e determinado
+        dinamicamente pelos \'indices dos top-$k$ patches, adaptando-se
+        ao tamanho do objeto em cada imagem.
+
+  \item \textbf{Modularidade:} O c\'odigo separa claramente backbone,
+        mecanismo de crop, aggregator e head. \'E poss\'ivel usar o
+        \texttt{ViTGLSim} diretamente como m\'odulo ou via
+        \texttt{build\_model} com qualquer backbone do timm.
+
+  \item \textbf{Test-time augmentation:} Suporte a flip horizontal no
+        momento de avalia\c{c}\~ao (\texttt{test\_flip}), que melhora
+        marginalmente a acur\'acia.
+\end{compactenum}
+
+% ─── Seção 14 ─────────────────────────────────────────────────────────────────
+\section{Limita\c{c}\~oes Identificadas no C\'odigo}
+
+\begin{compactitem}
+  \item \texttt{F.upsample\_bilinear} est\'a deprecado no PyTorch moderno
+        (deveria ser \texttt{F.interpolate(...,\,mode=`bilinear')}).
+
+  \item O trainer usa \texttt{torch.cuda.synchronize()} no loop de treino
+        mesmo sem necessidade em modo n\~ao-distribu\'ido, adicionando
+        overhead desnecess\'ario.
+
+  \item A fun\c{c}\~ao \texttt{imshow} para visualiza\c{c}\~ao de erros
+        chama \texttt{input()} interativo, incompat\'ivel com ambientes
+        headless/servidor.
+
+  \item \texttt{setup.py} usa o padr\~ao legado em vez de
+        \texttt{pyproject.toml}.
+\end{compactitem}
+
+\end{document}
