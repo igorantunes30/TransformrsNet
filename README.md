@@ -1,247 +1,196 @@
-> **Fork acadêmico — Seminário de Redes Neurais Artificiais (PPGEE / UFPA)**
+# GLSim-CUB-ViT — Classificação Fina de Espécies de Pássaros
+
+> **Seminário de Redes Neurais Artificiais — PPGEE / UFPA**
 >
-> Este repositório é uma reprodução do artigo **GLSim** com treinamento e avaliação
-> realizados sobre o dataset **CUB-200-2011** usando backbone **ViT-B/16 (224 px)**.
->
-> - **Resultado obtido no test split:** Top-1 = **90,85 %** · Top-5 = **98,34 %** · F1 macro = **0,908**
-> - **Análise detalhada:** ver [`RELATORIO.md`](./RELATORIO.md) e [`relatorio.pdf`](./relatorio.pdf)
-> - **Checkpoint treinado (≈ 710 MB):** não incluído no repositório (excede o limite do GitHub).
->   Instruções de re-treino na seção [Train](#train) abaixo.
->
-> A documentação original do paper segue abaixo.
->
-> ---
+> Aplicação do método **GLSim (Global-Local Similarity)** com backbone **ViT-B/16
+> (224 px)** para classificação fina de **200 espécies de pássaros** do dataset
+> **CUB-200-2011**.
 
-# Global-Local Similarity for Efficient Fine-Grained Image Recognition with Vision Transformers
+## Resultados
 
-Official Pytorch code for the paper:
-[Global-Local Similarity for Efficient Fine-Grained Image Recognition with Vision Transformers](https://arxiv.org/abs/2407.12891)
-published in ISCAS 25.
+Avaliação no test split (5 794 imagens, 200 classes):
 
-We propose a novel metric, GLS, to identify discriminative regions in an image
-by comparing the similarity between its global and local representations.
+| Métrica  | Valor       |
+|----------|-------------|
+| Top-1    | **90,85 %** |
+| Top-5    | **98,34 %** |
+| F1 macro | **0,908**   |
 
-![](./assets/dfsm.png)
+Análise completa em [`RELATORIO.md`](./RELATORIO.md) e [`relatorio.pdf`](./relatorio.pdf).
 
-Based on these regions we crop the image, encode it, followed by collective refining
-of high-level features using an aggregator module for robust predictions.
+## O que o modelo faz
+
+Dada a foto de um pássaro, o modelo prediz a espécie entre as 200 classes do
+CUB-200-2011 (ex.: *Black-footed Albatross*, *Indigo Bunting*, *Painted Bunting*).
+
+A dificuldade da tarefa é a **granularidade fina**: espécies do mesmo gênero
+muitas vezes diferem apenas em detalhes locais (formato do bico, padrão das
+penas, cor dos olhos). O GLSim resolve isso em duas passadas:
+
+1. **Encoder global** — ViT-B/16 produz embeddings de patch e um token CLS.
+2. **GLSCM (Global-Local Similarity Crop Module)** — calcula similaridade
+   cosseno entre o token CLS e cada patch local; os patches mais similares
+   delimitam uma *bounding box* discriminativa.
+3. **Encoder local** — o recorte é re-encodado pelo mesmo ViT.
+4. **Agregador** — os tokens CLS global e local são fundidos por um pequeno
+   Transformer; a cabeça classificadora produz a predição final.
 
 ![](./assets/glsim.png)
 
-Our method obtains favorable results in terms of accuracy in a variety of 
-fine-grained tasks(aircraft, cars, variety of plants, birds, other animals
-asides from birds, anime characters, and food).
+## Dataset
 
-![](./assets/table_sota_224.png)
+**CUB-200-2011** (Caltech-UCSD Birds 200):
+- 200 espécies de pássaros
+- 11 788 imagens
+- Split: 5 994 treino · 5 794 teste
 
-Samples of our crops are shown below:
+Os CSVs de splits usados estão em [`data/cub/`](./data/cub).
 
-![](./assets/crops_dfsm.png)
+## Estrutura do repositório
 
-Our proposed discriminative feature selection mechanism
-achieves these results at several order of magnitudes lower computational cost
-compared to aggregated attention mechanisms such as attention rollout.
-
-![](./assets/flops_dfsm_b16.png)
-
-Also, our method achieves a competitive accuracy vs cost trade-off compared to alternatives.
-
-![](./assets/table_nabirds.png)
-
-![](./assets/table_inat17.png)
-
-![](./assets/acc_tp_cub.png)
-
-Pre-trained checkpoints are available on [HuggingFace](https://huggingface.co/NYCU-PCSxNTHU-MIS/GLSim)!
-
-Try it on [Colab!](https://colab.research.google.com/drive/1Jt9bLqHyyqTGARQjBJ2-Ge0IYXIYk7yE?usp=sharing)
-
-The code for our model (and the ViT backbone) is in `glsim/model_utils/glsim.py`.
-
-Pseudo-code for the whole process:
 ```
-def forward(images):
-    feats = encoder(images)
-    crops = glscm(feats, images)
-    feats_c = encoder(crops)
-    x = torch.cat([feats[:, :1, :], feats_c[:, :1, :]], dim=1)
-    x = aggregator(x)
-    preds = head(x)
-    return preds
-
-def glscm(feats, images, patch_size=16):
-    # global (CLS token, first one) and local representations (other patches)
-    g = feats[:, :1, :]
-    l = feats[:, 1:, :]
-
-    # cosine similarity between global-local and rank based on highest similarity
-    sim = cosine_sim(g, l, dim=-1)
-    dist, ind = sim.topk(top_o, dim=-1, largest=True)
-
-    # converts indexes from 1d sequence to 2d sequence
-    ind_x = torch.div(ind, int(math.sqrt(l.shape[1])), rounding_mode='floor')
-    ind_y = ind % int(math.sqrt(l.shape[1]))
-
-    # 2d indexes corresponding to most left, right, top and bottom of the image
-    ind_x_i = reduce(ind_x, 'b a -> b', 'min')
-    ind_x_f = reduce(ind_x, 'b a -> b', 'max')
-    ind_y_i = reduce(ind_y, 'b a -> b', 'min')
-    ind_y_f = reduce(ind_y, 'b a -> b', 'max')
-
-    # converts 2d indexes to coordinates by multiplying times patch size
-    x_i = ind_x_i * patch_size
-    y_i = ind_y_i * patch_size
-    x_f = ind_x_f * patch_size
-    y_f = ind_y_f * patch_size
-
-    # crops image based on 2d coordinates then resizes
-    images_crops = []
-    for i in range(ind.shape[0]):
-        x_0 = max(x_i[i], 0)
-        y_0 = max(y_i[i], 0)
-        x_1 = min(max(x_f[i], x_i[i] + patch_size), images.shape[-1])
-        y_1 = min(max(y_f[i], y_i[i] + patch_size), images.shape[-1])
-
-        crop = images[i:i+1, :, x_0:x_1, y_0:y_1]
-        crop = F.upsample_bilinear(crop, size=(images.shape[-1], images.shape[-1]))
-        images_crops.append(crop)
-
-    images_crops = torch.cat(images_crops, dim=0)
-    return images_crops
+GLSim-CUB-ViT/
+├── glsim/                 # Pacote do modelo (ViTGLSim + utilitários)
+├── tools/                 # Scripts de treino, avaliação e visualização
+├── configs/               # YAMLs de configuração (dataset, método, augs)
+├── data/cub/              # Splits train/val/test do CUB-200-2011
+├── samples/               # Imagens de exemplo para inferência
+├── assets/                # Figuras
+├── infer_custom.py        # Inferência sobre uma pasta de imagens de pássaros
+├── eval_test.py           # Avaliação completa no test split
+├── analyze_similarity.py  # Estudo da métrica GLS
+├── dashboard.py           # Monitor de treinamento (terminal)
+├── RELATORIO.md           # Relatório técnico em Markdown
+└── relatorio.pdf          # Relatório técnico em PDF
 ```
 
 ## Setup
 
+Requer Python 3.10+ e PyTorch com CUDA. Instalação:
+
 ```
-pip install -e . 
+pip install -e .
 ```
 
-## Preparation
+> O checkpoint treinado (≈ 710 MB) não é versionado — está acima do limite do
+> GitHub. Para reproduzir o modelo, siga a seção [Treinamento](#treinamento).
 
-All of these require to first `chmod +x script_name` the corresponding scripts.
+## Treinamento
 
-To download pretrained checkpoints for CUB, DAFB, iNat17, NABirds (and vanilla In-21k ckpts):
-```
-./scripts/download_ckpts.sh
-python tools/preprocess/download_convert_vit_models.py
-```
+Treinar `GLSim-ViT-B/16` no CUB-200-2011 com imagens 224 × 224:
 
-To download datasets:
 ```
-./scripts/download.sh
-```
-
-To prepare the train and validation splits from the train_val set for each dataset (otherwise can skip this step and just copy the ones we included in the `data` directory to each respective dataset directory in order to ensure the splits are the same as ours):
-```
-./prepare_datasets.sh
+python tools/train.py \
+    --cfg configs/cub_ft_is224_medaugs.yaml \
+    --lr 0.01 \
+    --model_name vit_b16 \
+    --cfg_method configs/methods/glsim.yaml
 ```
 
-Dataset stats:
+Durante o treino, o log é gravado em `training_log.txt`. Para acompanhar em
+tempo real num terminal separado:
+
 ```
-./scripts/calc_hw.sh
+python dashboard.py
 ```
 
-## Train
+A curva de treinamento gerada está em `training_curves.png`.
 
-To train a `GLSim-ViT B-16` with CLS classifier on CUB using image size 224:
-```
-python tools/train.py --cfg configs/cub_ft_is224_medaugs.yaml --lr 0.01 --model_name vit_b16 --cfg_method configs/methods/glsim.yaml
-```
+## Avaliação
 
-Similarly, for image size 448:
-```
-python tools/train.py --cfg configs/cub_ft_is224_medaugs.yaml --lr 0.01 --model_name vit_b16 --cfg_method configs/methods/glsim.yaml --image_size 448
-```
-
-## Evaluation
-
-To evaluate a particular checkpoint on the test set (logs results to W&B):
+Avaliar um checkpoint no test split:
 
 ```
 python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --test_only
 ```
 
-To enforce batch size 1 (emulates streaming / on-demand classification behavior):
-```
-python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --batch_size 1
-```
-
-To visulize misclassification for a particular network on the test set:
+Script de avaliação detalhada (gera matriz de confusão, F1 por classe,
+top-K, etc. em `eval_test_output/`):
 
 ```
-python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --vis_errors
+python eval_test.py
 ```
 
-To save these results (results are saved in the same folder as train folder) (*note: takes some time):
+Para visualizar as imagens em que o modelo erra:
 
 ```
 python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --vis_errors_save
 ```
 
-## Inference
+## Inferência em fotos de pássaros
 
-Inference on a single image (saves results of original and crop side by side on `results_inference/`):
-```
-python tools/inference.py --ckpt_path ckpts/dafb_glsim.pth --images_path samples/others/dafb_rena_170785.jpg
-```
-
-To visualize the global-local similarity (and other fine-grained discriminative
-feature selection mechanisms such as attention rollout) as shown in the
-first figure and the following figure:
-
-![](./assets/dfsm_pt_settings_dinov2_nabirds.png)
-
-For batched inference on random train or test splits:
+Classificar uma única imagem de pássaro (resultado é salvo em
+`results_inference/`):
 
 ```
-python tools/vis_dfsm.py --serial 52 --batch_size 4 --vis_cols 4 --cfg configs/nabirds_ft_is224_weakaugs.yaml --model_name glsvit_base_patch14_dinov2.lvd142m --vis_mask gls --vis_mask_pow
-python tools/vis_dfsm.py --serial 52 --batch_size 4 --vis_cols 4 --cfg configs/nabirds_ft_is224_weakaugs.yaml --model_name glsvit_base_patch14_dinov2.lvd142m --vis_mask attention_11
-python tools/vis_dfsm.py --serial 52 --batch_size 4 --vis_cols 4 --cfg configs/nabirds_ft_is224_weakaugs.yaml --model_name glsvit_base_patch14_dinov2.lvd142m --vis_mask rollout_0_12
+python infer_custom.py --images_path minhas_fotos/passaro.jpg --top_k 5
 ```
 
-For individual inference:
+Classificar uma pasta inteira de fotos:
+
 ```
-python tools/inference.py --ckpt_path ckpts/dafb_glsim.pth --images_path samples/others/dafb_rena_170785.jpg --vis_mask_sq --vis_mask glsim_norm
-python tools/inference.py --ckpt_path ckpts/dafb_glsim.pth --images_path samples/others/dafb_rena_170785.jpg --vis_mask rollout
+python infer_custom.py --images_path minhas_fotos/ --top_k 5
 ```
 
-For doing inference on a whole folder (and its subdirectories):
+Visualizar o **mecanismo de seleção discriminativa** (mapa GLS sobre a
+imagem, mostrando onde o modelo "olhou"):
+
 ```
-python tools/inference.py --ckpt_path ckpts/cub_glsim_224.pth --images_path samples/
+python tools/inference.py \
+    --ckpt_path ckpts/cub_glsim_224.pth \
+    --images_path samples/ \
+    --vis_mask glsim_norm --vis_mask_sq
 ```
 
-## Usage as a module
-```
+Exemplos de recortes selecionados pelo GLSCM em pássaros do CUB:
+
+![](./assets/crops_dfsm.png)
+
+## Uso como módulo
+
+```python
 import torch
 from glsim.model_utils import ViTGLSim, ViTConfig
 
-model_name = 'vit_b16'
-cfg = ViTConfig(model_name, debugging=True, classifier='cls', dynamic_anchor=True,
-    reducer='cls', aggregator=True, aggregator_norm=True, aggregator_num_hidden_layers=1)
+cfg = ViTConfig(
+    'vit_b16',
+    classifier='cls',
+    dynamic_anchor=True,
+    reducer='cls',
+    aggregator=True,
+    aggregator_norm=True,
+    aggregator_num_hidden_layers=1,
+)
 model = ViTGLSim(cfg)
 
 x = torch.rand(2, cfg.num_channels, cfg.image_size, cfg.image_size)
-out = model(x)
+preds = model(x)   # logits sobre as 200 classes do CUB
 ```
 
-# Citation
-If you find our work helpful in your research, please cite it as:
-```
+## Citação
+
+Método original:
+
+```bibtex
 @misc{rios_global-local_2024,
-	title = {Global-{Local} {Similarity} for {Efficient} {Fine}-{Grained} {Image} {Recognition} with {Vision} {Transformers}},
-	url = {http://arxiv.org/abs/2407.12891},
-	publisher = {arXiv},
-	author = {Rios, Edwin Arkel and Hu, Min-Chun and Lai, Bo-Cheng},
-	month = jul,
-	year = {2024},
-	note = {arXiv:2407.12891 [cs]},
+    title  = {Global-Local Similarity for Efficient Fine-Grained Image
+              Recognition with Vision Transformers},
+    url    = {http://arxiv.org/abs/2407.12891},
+    author = {Rios, Edwin Arkel and Hu, Min-Chun and Lai, Bo-Cheng},
+    year   = {2024},
+    note   = {arXiv:2407.12891 [cs]},
 }
 ```
 
-# Acknowledgements
-We thank NYCU's HPC Center and National Center for High-performance Computing (NCHC) for providing computational and storage resources. 
+Dataset:
 
-We thank the authors of [TransFG](https://github.com/TACJu/TransFG), [FFVT](https://github.com/Markin-Wang/FFVT), [CAL](https://github.com/raoyongming/CAL), and [timm](https://github.com/huggingface/pytorch-image-models/) for providing implementations for comparison.
-
-Also, [Weight and Biases](https://wandb.ai/) for their platform for experiment management.
- 
+```bibtex
+@techreport{WahCUB_200_2011,
+    title       = {The Caltech-UCSD Birds-200-2011 Dataset},
+    author      = {Wah, C. and Branson, S. and Welinder, P. and Perona, P.
+                   and Belongie, S.},
+    institution = {California Institute of Technology},
+    number      = {CNS-TR-2011-001},
+    year        = {2011},
+}
+```
