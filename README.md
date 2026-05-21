@@ -2,82 +2,67 @@
 
 > **Seminário de Redes Neurais Artificiais — PPGEE / UFPA**
 >
-> Aplicação do método **GLSim (Global-Local Similarity)** com backbone **ViT-B/16
-> (224 px)** para classificação fina de **200 espécies de pássaros** do dataset
-> **CUB-200-2011**.
+> Treinamento e avaliação do método **GLSim** com backbone **ViT-B/16 (224 px)**
+> para classificação fina de **200 espécies de pássaros** (CUB-200-2011).
 
-## Resultados
+## Resultados obtidos
 
-Avaliação no test split (5 794 imagens, 200 classes):
+Test split do CUB-200-2011 — 5 794 imagens, 200 classes:
 
-| Métrica  | Valor       |
-|----------|-------------|
-| Top-1    | **90,85 %** |
-| Top-5    | **98,34 %** |
-| F1 macro | **0,908**   |
+| Métrica            | Valor       |
+|--------------------|-------------|
+| Top-1              | **90,85 %** |
+| Top-5              | **98,34 %** |
+| F1 macro           | **0,9084**  |
+| F1 weighted        | 0,9076      |
+| Precision macro    | 0,9111      |
+| Recall macro       | 0,9095      |
 
-Análise completa em [`RELATORIO.md`](./RELATORIO.md) e [`relatorio.pdf`](./relatorio.pdf).
+Resumo bruto em [`eval_test_output/metrics_summary.txt`](./eval_test_output/metrics_summary.txt).
 
-## O que o modelo faz
+### Análise dos erros (530 / 5 794)
 
-Dada a foto de um pássaro, o modelo prediz a espécie entre as 200 classes do
-CUB-200-2011 (ex.: *Black-footed Albatross*, *Indigo Bunting*, *Painted Bunting*).
+Agrupando as 200 classes por gênero/família a partir do último token do nome
+(Albatross, Sparrow, Warbler, Wren, …), obtemos 70 grupos — 37 deles com
+duas ou mais espécies. A distribuição dos erros nesses grupos:
 
-A dificuldade da tarefa é a **granularidade fina**: espécies do mesmo gênero
-muitas vezes diferem apenas em detalhes locais (formato do bico, padrão das
-penas, cor dos olhos). O GLSim resolve isso em duas passadas:
+| Categoria de erro                        | Quantidade   |
+|------------------------------------------|--------------|
+| Erros intra-grupo (mesma família)        | 372 (70,2 %) |
+| Erros inter-grupo (famílias diferentes)  | 158 (29,8 %) |
+| Esperado por chance                      | ≈ 3,5 %      |
+| **Lift observado / aleatório**           | **19,8 ×**   |
 
-1. **Encoder global** — ViT-B/16 produz embeddings de patch e um token CLS.
-2. **GLSCM (Global-Local Similarity Crop Module)** — calcula similaridade
-   cosseno entre o token CLS e cada patch local; os patches mais similares
-   delimitam uma *bounding box* discriminativa.
-3. **Encoder local** — o recorte é re-encodado pelo mesmo ViT.
-4. **Agregador** — os tokens CLS global e local são fundidos por um pequeno
-   Transformer; a cabeça classificadora produz a predição final.
+Ou seja: quando o modelo erra, ele confunde espécies próximas — não classes
+não relacionadas. Detalhes em
+[`eval_test_output/similarity_summary.txt`](./eval_test_output/similarity_summary.txt).
 
-![](./assets/glsim.png)
+### Visualizações geradas
 
-## Dataset
+Todas em [`eval_test_output/`](./eval_test_output):
 
-**CUB-200-2011** (Caltech-UCSD Birds 200):
-- 200 espécies de pássaros
-- 11 788 imagens
-- Split: 5 994 treino · 5 794 teste
+- `confusion_matrix.png` / `confusion_matrix_normalized.png` — 200 × 200
+- `confusion_matrix_by_group.png` — matriz agregada por gênero/família
+- `confusion_within_big_groups.png` — confusões dentro dos maiores grupos
+- `top20_confusion_pairs.csv` — pares de espécies mais confundidas
+- `worst20_classes.png` — 20 classes com pior F1
+- `f1_distribution.png` — histograma de F1 por classe
+- `accuracy_vs_group_size.png` — acurácia vs. nº de espécies do grupo
+- `metrics_table.png` — sumário visual
 
-Os CSVs de splits usados estão em [`data/cub/`](./data/cub).
-
-## Estrutura do repositório
-
-```
-GLSim-CUB-ViT/
-├── glsim/                 # Pacote do modelo (ViTGLSim + utilitários)
-├── tools/                 # Scripts de treino, avaliação e visualização
-├── configs/               # YAMLs de configuração (dataset, método, augs)
-├── data/cub/              # Splits train/val/test do CUB-200-2011
-├── samples/               # Imagens de exemplo para inferência
-├── assets/                # Figuras
-├── infer_custom.py        # Inferência sobre uma pasta de imagens de pássaros
-├── eval_test.py           # Avaliação completa no test split
-├── analyze_similarity.py  # Estudo da métrica GLS
-├── dashboard.py           # Monitor de treinamento (terminal)
-├── RELATORIO.md           # Relatório técnico em Markdown
-└── relatorio.pdf          # Relatório técnico em PDF
-```
-
-## Setup
-
-Requer Python 3.10+ e PyTorch com CUDA. Instalação:
-
-```
-pip install -e .
-```
-
-> O checkpoint treinado (≈ 710 MB) não é versionado — está acima do limite do
-> GitHub. Para reproduzir o modelo, siga a seção [Treinamento](#treinamento).
+Relatório completo: [`RELATORIO.md`](./RELATORIO.md) · [`relatorio.pdf`](./relatorio.pdf).
 
 ## Treinamento
 
-Treinar `GLSim-ViT-B/16` no CUB-200-2011 com imagens 224 × 224:
+- Backbone: ViT-B/16 inicializado com pesos ImageNet-21k
+- Imagens: 224 × 224, augmentações `medaugs` (flip + RandAugment leve)
+- Otimizador: SGD, lr 0,01, cosine decay com warmup, AMP fp16
+- 50 épocas; checkpoint *best* selecionado pelo top-1 de validação
+
+Curva de treino: [`training_curves.png`](./training_curves.png) · log completo em
+[`training_log.txt`](./training_log.txt).
+
+Para reproduzir do zero:
 
 ```
 python tools/train.py \
@@ -87,110 +72,95 @@ python tools/train.py \
     --cfg_method configs/methods/glsim.yaml
 ```
 
-Durante o treino, o log é gravado em `training_log.txt`. Para acompanhar em
-tempo real num terminal separado:
+Acompanhamento do treino em tempo real (terminal separado):
 
 ```
 python dashboard.py
 ```
 
-A curva de treinamento gerada está em `training_curves.png`.
+> O checkpoint `vit_b16_best.pth` (≈ 710 MB) não está versionado por exceder o
+> limite do GitHub. É preciso re-treinar para obter o arquivo.
 
 ## Avaliação
 
-Avaliar um checkpoint no test split:
-
-```
-python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --test_only
-```
-
-Script de avaliação detalhada (gera matriz de confusão, F1 por classe,
-top-K, etc. em `eval_test_output/`):
+Re-gerar todas as métricas e figuras do `eval_test_output/`:
 
 ```
 python eval_test.py
 ```
 
-Para visualizar as imagens em que o modelo erra:
+Avaliação rápida via script nativo do GLSim:
 
 ```
-python tools/train.py --ckpt_path ckpts/cub_glsim_224.pth --vis_errors_save
+python tools/train.py --ckpt_path results_train/cub_vit_b16_16_0/vit_b16_best.pth --test_only
 ```
 
-## Inferência em fotos de pássaros
-
-Classificar uma única imagem de pássaro (resultado é salvo em
-`results_inference/`):
+Estudo da métrica GLS (distribuição de similaridade global-local nas
+predições corretas/erradas):
 
 ```
-python infer_custom.py --images_path minhas_fotos/passaro.jpg --top_k 5
+python analyze_similarity.py
 ```
 
-Classificar uma pasta inteira de fotos:
+## Inferência em novas fotos
+
+`infer_custom.py` classifica uma imagem ou pasta inteira e salva um grid com
+as top-K predições em `results_inference/predictions.png`:
 
 ```
 python infer_custom.py --images_path minhas_fotos/ --top_k 5
 ```
 
-Visualizar o **mecanismo de seleção discriminativa** (mapa GLS sobre a
-imagem, mostrando onde o modelo "olhou"):
+Teste com um dataset externo (Bird-525) — para checar generalização fora do
+CUB — está em [`testes/`](./testes):
 
 ```
-python tools/inference.py \
-    --ckpt_path ckpts/cub_glsim_224.pth \
-    --images_path samples/ \
-    --vis_mask glsim_norm --vis_mask_sq
+python testes/infer_bulk.py
+python testes/metricas.py
 ```
 
-Exemplos de recortes selecionados pelo GLSCM em pássaros do CUB:
+Saídas: [`testes/resultados.csv`](./testes/resultados.csv) e
+[`testes/metricas_output/`](./testes/metricas_output) (matriz de confusão,
+comparação taxonômica, F1 por classe).
 
-![](./assets/crops_dfsm.png)
+## Estrutura do repositório
 
-## Uso como módulo
-
-```python
-import torch
-from glsim.model_utils import ViTGLSim, ViTConfig
-
-cfg = ViTConfig(
-    'vit_b16',
-    classifier='cls',
-    dynamic_anchor=True,
-    reducer='cls',
-    aggregator=True,
-    aggregator_norm=True,
-    aggregator_num_hidden_layers=1,
-)
-model = ViTGLSim(cfg)
-
-x = torch.rand(2, cfg.num_channels, cfg.image_size, cfg.image_size)
-preds = model(x)   # logits sobre as 200 classes do CUB
+```
+GLSim-CUB-ViT/
+├── glsim/                    # Pacote do modelo
+├── tools/                    # train.py, inference.py (originais)
+├── configs/                  # YAMLs (dataset, método, augs)
+├── data/cub/                 # CSVs dos splits do CUB-200-2011
+│
+├── infer_custom.py           # Inferência amigável em pasta de imagens
+├── eval_test.py              # Avaliação completa + figuras
+├── analyze_similarity.py     # Estudo da métrica GLS nas predições
+├── dashboard.py              # Monitor de treino no terminal
+├── plot_training.py          # Geração das curvas de treino
+├── make_metrics_table.py     # Tabela visual de métricas
+├── make_group_pairs.py       # Análise de pares confundidos por grupo
+├── make_glsim_flow.py        # Diagrama do fluxo do modelo
+│
+├── eval_test_output/         # Resultados e figuras desta execução
+├── testes/                   # Validação out-of-distribution (Bird-525)
+├── results_train/            # Checkpoints e crops do treino
+├── training_log.txt          # Log textual completo
+├── training_curves.png       # Curvas de loss/acc por época
+│
+├── RELATORIO.md              # Relatório técnico em Markdown
+├── relatorio.pdf             # Relatório técnico (PDF)
+└── relatorio.tex             # Fonte LaTeX do relatório
 ```
 
-## Citação
+## Setup
 
-Método original:
+Python 3.10+ com PyTorch + CUDA.
 
-```bibtex
-@misc{rios_global-local_2024,
-    title  = {Global-Local Similarity for Efficient Fine-Grained Image
-              Recognition with Vision Transformers},
-    url    = {http://arxiv.org/abs/2407.12891},
-    author = {Rios, Edwin Arkel and Hu, Min-Chun and Lai, Bo-Cheng},
-    year   = {2024},
-    note   = {arXiv:2407.12891 [cs]},
-}
+```
+pip install -e .
 ```
 
-Dataset:
+## Créditos
 
-```bibtex
-@techreport{WahCUB_200_2011,
-    title       = {The Caltech-UCSD Birds-200-2011 Dataset},
-    author      = {Wah, C. and Branson, S. and Welinder, P. and Perona, P.
-                   and Belongie, S.},
-    institution = {California Institute of Technology},
-    number      = {CNS-TR-2011-001},
-    year        = {2011},
-}
-```
+Método GLSim (Rios et al., 2024) — [arXiv:2407.12891](https://arxiv.org/abs/2407.12891).
+Dataset CUB-200-2011 — Wah et al., Caltech, 2011.
